@@ -1,0 +1,28 @@
+name: Deploy to App Engine GCP
+
+on:
+  push:
+    branches:
+      - master
+jobs:
+  deploy-to-app-engine:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    # Setup gcloud CLI
+    - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        version: '285.0.0'
+        service_account_email: ${{ secrets.GKE_EMAIL }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GKE_KEY }}
+        export_default_credentials: true 
+      
+    # Deploy the Docker image to the App Engine
+    - name: Deploy
+      run: |
+        gcloud app deploy
