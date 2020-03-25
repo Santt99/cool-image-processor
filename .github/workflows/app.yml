@@ -17,8 +17,8 @@ jobs:
     - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
       with:
         version: '285.0.0'
-        service_account_email: ${{ secrets.GKE_EMAIL }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_email: ${{ secrets.GKE_EMAIL }}
         service_account_key: ${{ secrets.GKE_KEY }}
         export_default_credentials: true 
       
