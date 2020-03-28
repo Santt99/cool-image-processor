@@ -12,7 +12,17 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@v2
-
+    
+    #Install Dependencies
+    - name: Install JWT GO
+      run: |
+        go get "github.com/dgrijalva/jwt-go"\
+        
+    - name: Install GIN
+      run: |
+        go get "github.com/gin-gonic/gin"
+        
+        
     # Setup gcloud CLI
     - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
       with:
