@@ -14,13 +14,9 @@ jobs:
       uses: actions/checkout@v2
     
     #Install Dependencies
-    - name: Install JWT GO
+    - name: Install Dependencies
       run: |
-        go get "github.com/dgrijalva/jwt-go"\
-        
-    - name: Install GIN
-      run: |
-        go get "github.com/gin-gonic/gin"
+        go get -d ./...
         
         
     # Setup gcloud CLI
