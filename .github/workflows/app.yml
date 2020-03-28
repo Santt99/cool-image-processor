@@ -24,4 +24,4 @@ jobs:
       # Deploy the Docker image to the App Engine
       - name: Deploy
         run: |
-          gcloud app deploy
+          gcloud app deploy --quiet
