@@ -10,9 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+    - name: setup env
+      run: |
+        echo "::set-env name=GOPATH::$(dirname $GITHUB_WORKSPACE)"
+        echo "::add-path::$(dirname $GITHUB_WORKSPACE)/bin"
+      shell: bash
+      
     - name: Checkout
       uses: actions/checkout@v2
-    
+      with:
+            ref: B8
+            path: src/github.com/${{ github.repository }}\
+          
     #Install Dependencies
     - name: Install Dependencies
       run: |
