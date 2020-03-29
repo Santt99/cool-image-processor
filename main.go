@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
-	"reflect"
+	"os"
 	"strconv"
 	"strings"
 	"time"
-	"os"
-	"io"
-	"mime/multipart"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
@@ -36,13 +36,7 @@ type Claims struct {
 
 type Image struct {
 	Image http.File `json:"image" form:"image" `
-	Token string `json:"token" form:"token"`
 }
-
-type Token struct {
-	Token string `json:token`
-}
-
 type Err struct {
 	code    int
 	message string
@@ -65,7 +59,7 @@ func main() {
 	}))
 
 	authorized.GET("/login", login)
-	r.GET("/user", getUser)
+	r.GET("/status", getStatus)
 	r.GET("/logout", logout)
 	r.GET("/upload", upload)
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
@@ -78,40 +72,39 @@ func logout(c *gin.Context) {
 		return
 	}
 	tokens[username] = ""
-	c.AbortWithStatus(200)
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprint("Bye ", username, ", your token has been revoked")})
 	return
 }
 func getErrorCode(err error) int {
 	errorParts := strings.Split(err.Error(), "-")
 	errorCode, err := strconv.Atoi(errorParts[0])
 	if err != nil {
-		return 500
+		return http.StatusInternalServerError
 	}
 	return errorCode
 }
-func getUser(c *gin.Context) {
+func getStatus(c *gin.Context) {
 
 	username, err := auth(c)
 	if err != nil {
-		errorCode := getErrorCode(err)
-		c.AbortWithStatus(errorCode)
+		returnError(err, c)
 		return
 	}
-	c.JSON(200, gin.H{"username": username})
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprint("Hi ", username, ", the DPIP System is Up and Running"), "time": time.Now()})
 }
 
-func upload (c *gin.Context) (){
+func upload(c *gin.Context) {
 	var image Image
-	if err := c.Bind(&image); err != nil {
-		errorCode := getErrorCode(&Err{400, "Bad Request"})
-		c.AbortWithStatus(errorCode)
+
+	_, err := auth(c)
+	if err != nil {
+		returnError(err, c)
 		return
 	}
 
-	fmt.Println(image.Token)
-	_, err := itExist(image.Token)
-	if err != nil {
-		returnError(err, c)
+	if err := c.Bind(&image); err != nil {
+		errorCode := getErrorCode(&Err{http.StatusBadRequest, "Bad Request"})
+		c.AbortWithStatus(errorCode)
 		return
 	}
 
@@ -121,23 +114,22 @@ func upload (c *gin.Context) (){
 		return
 	}
 	err = createFile(header.Filename, file)
-	if err != nil{
+	if err != nil {
 		returnError(err, c)
 		return
 	}
 
 	size := strconv.Itoa(int(header.Size))
 
-	c.JSON(200, gin.H{"status": "SUCCESS", "fileName": header.Filename, "fileSize" : size + " bytes"})
+	c.JSON(http.StatusOK, gin.H{"status": "SUCCESS", "fileName": header.Filename, "fileSize": size + " bytes"})
 }
 
-func returnError(err error, c *gin.Context){
-	fmt.Println(err)
+func returnError(err error, c *gin.Context) {
 	errorCode := getErrorCode(err)
 	c.AbortWithStatus(errorCode)
 }
 
-func createFile(fileName string, file multipart.File) (error){
+func createFile(fileName string, file multipart.File) error {
 	out, err := os.Create(fileName)
 	if err != nil {
 		return err
@@ -151,47 +143,40 @@ func createFile(fileName string, file multipart.File) (error){
 }
 
 func auth(c *gin.Context) (string, error) {
-	var token Token
-
-	if err := c.ShouldBindJSON(&token); err != nil {
-		return "", &Err{400, "Bad Request"}
-	}
-
-	return itExist(token.Token)
+	bearberToken := c.GetHeader("Authorization")
+	token := strings.Split(bearberToken, " ")[1]
+	return itExist(token)
 }
 
-func itExist(tknStr string) (string, error){
+func itExist(tknStr string) (string, error) {
 	claims := &Claims{}
-
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
 	if err != nil {
-		fmt.Print(reflect.TypeOf(err))
 		if tkn == nil {
-			return "", &Err{400, "Bad Request"}
+			return "", &Err{http.StatusBadRequest, "Bad Request"}
 		}
-		return "", &Err{401, "Token not valid"}
+		return "", &Err{http.StatusUnauthorized, "Token not valid"}
 	}
 
 	if tk, ok := tokens[claims.Username]; ok {
 		if tk != tknStr {
-			return "", &Err{401, "Token not valid"}
+			return "", &Err{http.StatusUnauthorized, "Token not valid"}
 		}
 	} else {
-		return "", &Err{400, "Bad Request"}
+		return "", &Err{http.StatusUnauthorized, "Token not valid"}
 	}
 	return claims.Username, nil
 }
 
-
 func login(c *gin.Context) {
-	user := c.MustGet(gin.AuthUserKey).(string)
+	username := c.MustGet(gin.AuthUserKey).(string)
 
 	expirationTime := time.Now().Add(5 * time.Minute)
 
 	claims := &Claims{
-		Username: user,
+		Username: username,
 		StandardClaims: jwt.StandardClaims{
 			// In JWT, the expiry time is expressed as unix milliseconds
 			ExpiresAt: expirationTime.Unix(),
@@ -204,9 +189,9 @@ func login(c *gin.Context) {
 	if err != nil {
 		c.AbortWithStatus(500)
 	}
-	tokens[user] = tokenString
-	if _, ok := secrets[user]; ok {
-		c.JSON(http.StatusOK, gin.H{"token": tokenString})
+	tokens[username] = tokenString
+	if _, ok := secrets[username]; ok {
+		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprint("Hi ", username, ", welcome to the DPIP System"), "token": tokenString})
 	} else {
 		c.AbortWithStatus(401)
 	}
