@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"os"
+	"io"
+	"mime/multipart"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
@@ -30,6 +32,11 @@ type Credentials struct {
 type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
+}
+
+type Image struct {
+	Image http.File `json:"image" form:"image" `
+	Token string `json:"token" form:"token"`
 }
 
 type Token struct {
@@ -61,6 +68,7 @@ func main() {
 	authorized.GET("/login", login)
 	r.GET("/user", getUser)
 	r.GET("/logout", logout)
+	r.GET("/upload", upload)
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
 func logout(c *gin.Context) {
@@ -83,6 +91,7 @@ func getErrorCode(err error) int {
 	return errorCode
 }
 func getUser(c *gin.Context) {
+
 	username, err := auth(c)
 	if err != nil {
 		errorCode := getErrorCode(err)
@@ -92,22 +101,69 @@ func getUser(c *gin.Context) {
 	c.JSON(200, gin.H{"username": username})
 }
 
+func upload (c *gin.Context) (){
+	var image Image
+	if err := c.Bind(&image); err != nil {
+		errorCode := getErrorCode(&Err{400, "Bad Request"})
+		c.AbortWithStatus(errorCode)
+		return
+	}
+
+	fmt.Println(image.Token)
+	_, err := itExist(image.Token)
+	if err != nil {
+		returnError(err, c)
+		return
+	}
+
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		returnError(err, c)
+		return
+	}
+	err = createFile(header.Filename, file)
+	if err != nil{
+		returnError(err, c)
+		return
+	}
+
+	size := strconv.Itoa(int(header.Size))
+
+	c.JSON(200, gin.H{"status": "SUCCESS", "fileName": header.Filename, "fileSize" : size + " bytes"})
+}
+
+func returnError(err error, c *gin.Context){
+	fmt.Println(err)
+	errorCode := getErrorCode(err)
+	c.AbortWithStatus(errorCode)
+}
+
+func createFile(fileName string, file multipart.File) (error){
+	out, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, file)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func auth(c *gin.Context) (string, error) {
 	var token Token
+
 	if err := c.ShouldBindJSON(&token); err != nil {
 		return "", &Err{400, "Bad Request"}
 	}
 
-	// Get the JWT string from the cookie
-	tknStr := token.Token
+	return itExist(token.Token)
+}
 
-	// Initialize a new instance of `Claims`
+func itExist(tknStr string) (string, error){
 	claims := &Claims{}
 
-	// Parse the JWT string and store the result in `claims`.
-	// Note that we are passing the key in this method as well. This method will return an error
-	// if the token is invalid (if it has expired according to the expiry time we set on sign in),
-	// or if the signature does not match
 	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil
 	})
@@ -126,17 +182,15 @@ func auth(c *gin.Context) (string, error) {
 	} else {
 		return "", &Err{400, "Bad Request"}
 	}
-
 	return claims.Username, nil
 }
 
+
 func login(c *gin.Context) {
 
-	// get user, it was set by the BasicAuth middleware
 	user := c.MustGet(gin.AuthUserKey).(string)
 
-	// /admin/secrets endpoint
-	// hit "localhost:8080/admin/secrets
+
 	expirationTime := time.Now().Add(5 * time.Minute)
 	// Create the JWT claims, which includes the username and expiry time
 	claims := &Claims{
