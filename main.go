@@ -56,8 +56,7 @@ func main() {
 	r := gin.Default()
 
 	r.Use()
-	// Group using gin.BasicAuth() middleware
-	// gin.Accounts is a shortcut for map[string]string
+
 	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
 		"foo":    "bar",
 		"austin": "1234",
@@ -187,12 +186,10 @@ func itExist(tknStr string) (string, error){
 
 
 func login(c *gin.Context) {
-
 	user := c.MustGet(gin.AuthUserKey).(string)
 
-
 	expirationTime := time.Now().Add(5 * time.Minute)
-	// Create the JWT claims, which includes the username and expiry time
+
 	claims := &Claims{
 		Username: user,
 		StandardClaims: jwt.StandardClaims{
@@ -201,10 +198,8 @@ func login(c *gin.Context) {
 		},
 	}
 
-	// Declare the token with the algorithm used for signing, and the claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	// Create the JWT string
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		c.AbortWithStatus(500)
@@ -215,5 +210,4 @@ func login(c *gin.Context) {
 	} else {
 		c.AbortWithStatus(401)
 	}
-
 }
