@@ -4,6 +4,7 @@ github.com/CodersSquad/dc-labs v0.0.0-20200429214947-5e4498c3266f h1:XI5W6D0y3If
 github.com/CodersSquad/dc-labs v0.0.0-20200429214947-5e4498c3266f/go.mod h1:ILavf/XZQaB5aeopvaUg9TEEPvjkHrkDAF5hsaruBWs=
 github.com/Microsoft/go-winio v0.4.11 h1:zoIOcVf0xPN1tnMVbTtEdI+P8OofVk3NObnwOQ6nK2Q=
 github.com/Microsoft/go-winio v0.4.11/go.mod h1:VhR8bwka0BXejwEJY73c50VrPtXAaKcyvVC4A4RozmA=
+github.com/Santt99/cool-image-processor v0.0.0-20200328230656-fe90cd0b638e h1:lw+zFJs4m20lgflJuWw1rDOr5/KY72vwetUo25IGA+Q=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
