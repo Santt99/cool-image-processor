@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"fmt"
@@ -34,9 +34,7 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-type Image struct {
-	Image http.File `json:"image" form:"image" `
-}
+
 type Err struct {
 	code    int
 	message string
@@ -46,7 +44,7 @@ func (e *Err) Error() string {
 	return fmt.Sprintf("%d-%s", e.code, e.message)
 }
 
-func main() {
+func Run() {
 	r := gin.Default()
 
 	r.Use()
@@ -94,7 +92,6 @@ func getStatus(c *gin.Context) {
 }
 
 func upload(c *gin.Context) {
-	var image Image
 
 	_, err := auth(c)
 	if err != nil {
@@ -102,13 +99,8 @@ func upload(c *gin.Context) {
 		return
 	}
 
-	if err := c.Bind(&image); err != nil {
-		errorCode := getErrorCode(&Err{http.StatusBadRequest, "Bad Request"})
-		c.AbortWithStatus(errorCode)
-		return
-	}
 
-	file, header, err := c.Request.FormFile("image")
+	file, header, err := c.Request.FormFile("data")
 	if err != nil {
 		returnError(err, c)
 		return
