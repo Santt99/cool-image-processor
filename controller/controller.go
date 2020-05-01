@@ -2,15 +2,15 @@ package controller
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
-	"go.nanomsg.org/mangos"
-	"go.nanomsg.org/mangos/protocol/pub"
+	
+	"nanomsg.org/go/mangos/v2"
+	"nanomsg.org/go/mangos/v2/protocol/surveyor"
 
 	// register transports
-	_ "go.nanomsg.org/mangos/transport/all"
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 var controllerAddress = "tcp://localhost:40899"
@@ -27,19 +27,30 @@ func date() string {
 func Start() {
 	var sock mangos.Socket
 	var err error
-	if sock, err = pub.NewSocket(); err != nil {
-		die("can't get new pub socket: %s", err)
+	var msg []byte
+	if sock, err = surveyor.NewSocket(); err != nil {
+		die("can't get new surveyor socket: %s", err)
 	}
 	if err = sock.Listen(controllerAddress); err != nil {
-		die("can't listen on pub socket: %s", err.Error())
+		die("can't listen on surveyor socket: %s", err.Error())
+	}
+	err = sock.SetOption(mangos.OptionSurveyTime, time.Second/2)
+	if err != nil {
+		die("SetOption(): %s", err.Error())
 	}
 	for {
-		// Could also use sock.RecvMsg to get header
-		d := date()
-		log.Printf("Controller: Publishing Date %s\n", d)
-		if err = sock.Send([]byte(d)); err != nil {
-			die("Failed publishing: %s", err.Error())
+		time.Sleep(time.Second)
+		fmt.Println("SERVER: SENDING DATE SURVEY REQUEST")
+		if err = sock.Send([]byte("DATE")); err != nil {
+			die("Failed sending survey: %s", err.Error())
 		}
-		time.Sleep(time.Second * 3)
+		for {
+			if msg, err = sock.Recv(); err != nil {
+				break
+			}
+			fmt.Printf("SERVER: RECEIVED \"%s\" SURVEY RESPONSE\n",
+				string(msg))
+		}
+		fmt.Println("SERVER: SURVEY OVER")
 	}
 }
