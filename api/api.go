@@ -21,6 +21,7 @@ var secrets = gin.H{
 }
 
 var tokens = make(map[string]string)
+var jobsQueue = make(chan int, 10)
 
 // Create the JWT key used to create the signature
 var jwtKey = []byte("my_secret_key")
@@ -44,11 +45,10 @@ func (e *Err) Error() string {
 	return fmt.Sprintf("%d-%s", e.code, e.message)
 }
 
-func Run() {
+func Run(jobs chan int) {
 	r := gin.Default()
-
 	r.Use()
-
+	jobsQueue = jobs
 	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
 		"foo":    "bar",
 		"austin": "1234",
@@ -60,7 +60,12 @@ func Run() {
 	r.GET("/status", getStatus)
 	r.GET("/logout", logout)
 	r.GET("/upload", upload)
+	r.GET("/hello", hello)
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+}
+func hello(c *gin.Context){
+	jobsQueue <- 1
+	c.JSON(http.StatusOK, gin.H{"message": "Hola"})
 }
 func logout(c *gin.Context) {
 	username, err := auth(c)
@@ -71,7 +76,7 @@ func logout(c *gin.Context) {
 	}
 	tokens[username] = ""
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprint("Bye ", username, ", your token has been revoked")})
-	return
+	return 
 }
 func getErrorCode(err error) int {
 	errorParts := strings.Split(err.Error(), "-")
