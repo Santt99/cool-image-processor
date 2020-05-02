@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	pb "/proto"
+	pb "github.com/Santt99/cool-image-processor/proto"
 	"google.golang.org/grpc"
 )
 
