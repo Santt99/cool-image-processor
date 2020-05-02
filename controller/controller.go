@@ -33,6 +33,23 @@ func Start() {
 	var sock mangos.Socket
 	var err error
 	var msg []byte
+	db, err := bolt.Open("my.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	tx, err := db.Begin(true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	_, err = tx.CreateBucketIfNotExists([]byte("Workers"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if sock, err = surveyor.NewSocket(); err != nil {
 		die("can't get new surveyor socket: %s", err)
 	}
@@ -56,10 +73,9 @@ func Start() {
 			workerMetadata := strings.Split(string(msg), "@")
 			workerName := workerMetadata[0]
 			lastUpdate := workerMetadata[4]
-			inserToDB(Worker{workerName, workerMetadata[1], workerMetadata[2], workerMetadata[3], lastUpdate, "On"})
+			insertWorkerToDB(Worker{workerName, workerMetadata[1], workerMetadata[2], workerMetadata[3], lastUpdate, "On"})
 		}
 		updateWorkersPowerStatus()
-		GetWorkers()
 		fmt.Println("SERVER: SURVEY OVER")
 	}
 }
@@ -73,7 +89,7 @@ type Worker struct {
 	PowerStatus string `json:"powerStatus"`
 }
 
-func inserToDB(worker Worker) {
+func insertWorkerToDB(worker Worker) {
 	db, err := bolt.Open("my.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -82,60 +98,57 @@ func inserToDB(worker Worker) {
 
 	tx, err := db.Begin(true)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer tx.Rollback()
 
-	workers, err := tx.CreateBucketIfNotExists([]byte("Workers"))
-	if err != nil {
-		panic(err)
-	}
+	workers := tx.Bucket([]byte("Workers"))
 
 	node, err := workers.CreateBucketIfNotExists([]byte(worker.Name))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	// Setup the users bucket.
 	nodeMetadata, err := node.CreateBucketIfNotExists([]byte("metadata"))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	err = nodeMetadata.Put([]byte("name"), []byte(worker.Name))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	err = nodeMetadata.Put([]byte("tag"), []byte(worker.Tag))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	err = nodeMetadata.Put([]byte("ip"), []byte(worker.IP))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	err = nodeMetadata.Put([]byte("port"), []byte(worker.Port))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	err = nodeMetadata.Put([]byte("timestamp"), []byte(worker.LastUpdate))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	err = nodeMetadata.Put([]byte("powerStatus"), []byte("On"))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	// Commit the transaction and check for error.
 	err = tx.Commit()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
-func GetWorkers() {
+func GetWorkers() []Worker {
 	db, err := bolt.Open("my.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -143,18 +156,25 @@ func GetWorkers() {
 	defer db.Close()
 	tx, err := db.Begin(true)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer tx.Rollback()
 
 	workers := tx.Bucket([]byte("Workers"))
 	workersCursor := workers.Cursor()
+	workersLength := workersCursor.Bucket().Stats().InlineBucketN
+	if workersLength <= 0 {
+		return nil
+	}
+	workersMetadataArray := make([]Worker, workersLength)
 	for key, _ := workersCursor.First(); key != nil; key, _ = workersCursor.Next() {
 
 		node := workers.Bucket([]byte(key))
 		e := node.Bucket([]byte("metadata"))
 		c := e.Cursor()
 		nodeName, nodeIp, nodePort, nodePowerStatus, nodeTimestamp, nodeTags := "", "", "", "", "", ""
+
+		index := 0
 		for key, value := c.First(); key != nil; key, value = c.Next() {
 			switch key := string(key); key {
 			case "name":
@@ -170,12 +190,12 @@ func GetWorkers() {
 			default:
 				nodeTimestamp = string(value)
 			}
-			fmt.Printf("key=%s, value=%s\n", key, value)
 		}
 
-		fmt.Println(Worker{nodeName, nodeTags, nodeIp, nodePort, nodeTimestamp, nodePowerStatus})
+		workersMetadataArray[index] = Worker{nodeName, nodeTags, nodeIp, nodePort, nodeTimestamp, nodePowerStatus}
+		index = index + 1
 	}
-
+	return workersMetadataArray
 }
 
 func updateWorkersPowerStatus() {
@@ -186,12 +206,13 @@ func updateWorkersPowerStatus() {
 	defer db.Close()
 	tx, err := db.Begin(true)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer tx.Rollback()
 
 	workers := tx.Bucket([]byte("Workers"))
 	workersCursor := workers.Cursor()
+
 	for key, _ := workersCursor.First(); key != nil; key, _ = workersCursor.Next() {
 		node := workers.Bucket([]byte(key))
 		e := node.Bucket([]byte("metadata"))
@@ -202,7 +223,7 @@ func updateWorkersPowerStatus() {
 				layout := "2006-01-02 15:04:05-07:00"
 				lastUpdate, err := time.Parse(layout, string(value))
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 				t := time.Now()
 				diff := t.Sub(lastUpdate)
@@ -215,6 +236,6 @@ func updateWorkersPowerStatus() {
 
 	// Commit the transaction.
 	if err := tx.Commit(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

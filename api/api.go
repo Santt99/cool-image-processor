@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Santt99/cool-image-processor/controller"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
@@ -35,7 +36,6 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-
 type Err struct {
 	code    int
 	message string
@@ -58,14 +58,35 @@ func Run(jobs chan int) {
 
 	authorized.GET("/login", login)
 	r.GET("/status", getStatus)
+	r.GET("/status/workers", getWorkersStatus)
 	r.GET("/logout", logout)
 	r.GET("/upload", upload)
 	r.GET("/hello", hello)
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
-func hello(c *gin.Context){
+func hello(c *gin.Context) {
+	_, err := auth(c)
+	if err != nil {
+		errorCode := getErrorCode(err)
+		c.AbortWithStatus(errorCode)
+		return
+	}
 	jobsQueue <- 1
 	c.JSON(http.StatusOK, gin.H{"message": "Hola"})
+}
+
+func getWorkersStatus(c *gin.Context) {
+	_, err := auth(c)
+	if err != nil {
+		errorCode := getErrorCode(err)
+		c.AbortWithStatus(errorCode)
+		return
+	}
+	workers := controller.GetWorkers()
+	if workers == nil {
+		c.JSON(http.StatusOK, gin.H{"message": "No workers registered"})
+	}
+	c.JSON(http.StatusOK, gin.H{})
 }
 func logout(c *gin.Context) {
 	username, err := auth(c)
@@ -76,7 +97,7 @@ func logout(c *gin.Context) {
 	}
 	tokens[username] = ""
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprint("Bye ", username, ", your token has been revoked")})
-	return 
+	return
 }
 func getErrorCode(err error) int {
 	errorParts := strings.Split(err.Error(), "-")
@@ -103,7 +124,6 @@ func upload(c *gin.Context) {
 		returnError(err, c)
 		return
 	}
-
 
 	file, header, err := c.Request.FormFile("data")
 	if err != nil {
