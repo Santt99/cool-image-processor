@@ -1,14 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"math/rand"
-	"time"
 
+	api "github.com/Santt99/cool-image-processor/api"
 	"github.com/Santt99/cool-image-processor/controller"
 	"github.com/Santt99/cool-image-processor/scheduler"
-	api "github.com/Santt99/cool-image-processor/api"
 )
 
 func main() {
@@ -19,17 +16,23 @@ func main() {
 
 	// Start Scheduler
 	jobs := make(chan scheduler.Job)
+	jobsByCodeName := make(chan int, 10)
 	go scheduler.Start(jobs)
-	// Send sample jobs
-	sampleJob := scheduler.Job{Address: "localhost:50051", RPCName: "hello"}
 
+	// Send sample jobs
+	go api.Run(jobsByCodeName)
 	for {
-		sampleJob.RPCName = fmt.Sprintf("hello-%v", rand.Intn(10000))
-		jobs <- sampleJob
-		time.Sleep(time.Second * 5)
+		select {
+		case data := <-jobsByCodeName:
+			if data == 1 {
+				currentJob := scheduler.Job{Work: "SayHello", RPCName: "Paco"}
+				jobs <- currentJob
+			}
+		default:
+		}
 	}
+
 	// API
 
-	go api.Run()
 	// Here's where your API setup will be
 }

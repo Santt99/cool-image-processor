@@ -1,0 +1,26 @@
+[
+    {
+        "name": "paco",
+        "tag": "gpu,superCPU,largeMemory",
+        "ip": "192.168.15.15",
+        "port": "50051",
+        "lastUpdate": "2020-05-02 03:55:05-05:00",
+        "powerStatus": "off"
+    },
+    {
+        "name": "",
+        "tag": "",
+        "ip": "",
+        "port": "",
+        "lastUpdate": "",
+        "powerStatus": ""
+    },
+    {
+        "name": "",
+        "tag": "",
+        "ip": "",
+        "port": "",
+        "lastUpdate": "",
+        "powerStatus": ""
+    }
+]

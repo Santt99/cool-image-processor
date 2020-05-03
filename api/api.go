@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Santt99/cool-image-processor/controller"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +22,7 @@ var secrets = gin.H{
 }
 
 var tokens = make(map[string]string)
+var jobsQueue = make(chan int, 10)
 
 // Create the JWT key used to create the signature
 var jwtKey = []byte("my_secret_key")
@@ -34,7 +36,6 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-
 type Err struct {
 	code    int
 	message string
@@ -44,11 +45,10 @@ func (e *Err) Error() string {
 	return fmt.Sprintf("%d-%s", e.code, e.message)
 }
 
-func Run() {
+func Run(jobs chan int) {
 	r := gin.Default()
-
 	r.Use()
-
+	jobsQueue = jobs
 	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
 		"foo":    "bar",
 		"austin": "1234",
@@ -58,9 +58,35 @@ func Run() {
 
 	authorized.GET("/login", login)
 	r.GET("/status", getStatus)
+	r.GET("/status/workers", getWorkersStatus)
 	r.GET("/logout", logout)
 	r.GET("/upload", upload)
+	r.GET("/workloads/test", hello)
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+}
+func hello(c *gin.Context) {
+	_, err := auth(c)
+	if err != nil {
+		errorCode := getErrorCode(err)
+		c.AbortWithStatus(errorCode)
+		return
+	}
+	jobsQueue <- 1
+	c.JSON(http.StatusOK, gin.H{"message": "Hola"})
+}
+
+func getWorkersStatus(c *gin.Context) {
+	_, err := auth(c)
+	if err != nil {
+		errorCode := getErrorCode(err)
+		c.AbortWithStatus(errorCode)
+		return
+	}
+	workers := controller.GetWorkers()
+	if workers == nil {
+		c.JSON(http.StatusOK, gin.H{"message": "No workers registered"})
+	}
+	c.JSON(http.StatusOK, workers)
 }
 func logout(c *gin.Context) {
 	username, err := auth(c)
@@ -98,7 +124,6 @@ func upload(c *gin.Context) {
 		returnError(err, c)
 		return
 	}
-
 
 	file, header, err := c.Request.FormFile("data")
 	if err != nil {
