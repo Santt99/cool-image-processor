@@ -73,7 +73,7 @@ func Start() {
 			workerMetadata := strings.Split(string(msg), "@")
 			workerName := workerMetadata[0]
 			lastUpdate := workerMetadata[4]
-			insertWorkerToDB(Worker{workerName, workerMetadata[1], workerMetadata[2], workerMetadata[3], lastUpdate, "On"})
+			insertWorkerToDB(Worker{workerName, workerMetadata[1], workerMetadata[2], workerMetadata[3], lastUpdate, "On", workerMetadata[5]})
 		}
 		updateWorkersPowerStatus()
 		fmt.Println("SERVER: SURVEY OVER")
@@ -87,6 +87,7 @@ type Worker struct {
 	Port        string `json:"port"`
 	LastUpdate  string `json:"lastUpdate"`
 	PowerStatus string `json:"powerStatus"`
+	usage       string `json:"usage"`
 }
 
 func insertWorkerToDB(worker Worker) {
@@ -141,6 +142,10 @@ func insertWorkerToDB(worker Worker) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = nodeMetadata.Put([]byte("usage"), []byte(worker.usage))
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Commit the transaction and check for error.
 	err = tx.Commit()
 	if err != nil {
@@ -172,7 +177,7 @@ func GetWorkers() []Worker {
 		node := workers.Bucket([]byte(key))
 		e := node.Bucket([]byte("metadata"))
 		c := e.Cursor()
-		nodeName, nodeIp, nodePort, nodePowerStatus, nodeTimestamp, nodeTags := "", "", "", "", "", ""
+		nodeName, nodeIp, nodePort, nodePowerStatus, nodeTimestamp, nodeTags, nodeUsage := "", "", "", "", "", "", ""
 
 		index := 0
 		for key, value := c.First(); key != nil; key, value = c.Next() {
@@ -187,12 +192,14 @@ func GetWorkers() []Worker {
 				nodePowerStatus = string(value)
 			case "tag":
 				nodeTags = string(value)
+			case "usage":
+				nodeUsage = string(value)
 			default:
 				nodeTimestamp = string(value)
 			}
 		}
 
-		workersMetadataArray[index] = Worker{nodeName, nodeTags, nodeIp, nodePort, nodeTimestamp, nodePowerStatus}
+		workersMetadataArray[index] = Worker{nodeName, nodeTags, nodeIp, nodePort, nodeTimestamp, nodePowerStatus, nodeUsage}
 		index = index + 1
 	}
 	return workersMetadataArray

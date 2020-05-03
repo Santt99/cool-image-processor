@@ -1,24 +1,24 @@
-package main 
-
+package main
 
 import (
-	"fmt"
-	"os"
-	"time"
-	"log"
-	"flag"
-	"net"
 	"context"
+	"flag"
+	"fmt"
+	"log"
+	"math/rand"
+	"net"
+	"os"
 	"strconv"
 	"strings"
+	"time"
+
 	"nanomsg.org/go/mangos/v2"
 	"nanomsg.org/go/mangos/v2/protocol/respondent"
 
 	pb "github.com/Santt99/cool-image-processor/proto"
 	// register transports
-	_ "nanomsg.org/go/mangos/v2/transport/all"
 	"google.golang.org/grpc"
-	
+	_ "nanomsg.org/go/mangos/v2/transport/all"
 )
 
 // server is used to implement helloworld.GreeterServer.
@@ -44,6 +44,7 @@ func die(format string, v ...interface{}) {
 func date() string {
 	return time.Now().Format(time.ANSIC)
 }
+
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	log.Printf("RPC: Received: %v", in.GetName())
@@ -56,7 +57,7 @@ func init() {
 	flag.StringVar(&tags, "tags", "gpu,superCPU,largeMemory", "Comma-separated worker tags")
 }
 
-func main(){
+func main() {
 	flag.Parse()
 	// Subscribe to Controller
 	go joinCluster()
@@ -65,42 +66,48 @@ func main(){
 	log.Printf("Starting RPC Service on localhost:%v", rpcPort)
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", rpcPort))
 	if err != nil {
-			log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	pb.RegisterGreeterServer(s, &server{})
 	if err := s.Serve(lis); err != nil {
-			log.Fatalf("failed to serve: %v", err)
+		log.Fatalf("failed to serve: %v", err)
 	}
 }
 
 func getAvailablePort() int {
 	port := defaultRPCPort
 	for {
-			ln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
-			if err != nil {
-					port = port + 1
-					continue
-			}
-			ln.Close()
-			break
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
+		if err != nil {
+			port = port + 1
+			continue
+		}
+		ln.Close()
+		break
 	}
 	return port
 }
 
 func getIP() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
-    if err != nil{
+	if err != nil {
 		localAddr := "unknown"
 		return localAddr
 	}
 
 	defer conn.Close()
-	localAddr := strings.Split(conn.LocalAddr().(*net.UDPAddr).String(), ":")[0] 
+	localAddr := strings.Split(conn.LocalAddr().(*net.UDPAddr).String(), ":")[0]
 	return localAddr
 }
 
-func joinCluster(){
+func randomUse(max int, min int) int {
+	rand.Seed(time.Now().UnixNano())
+	v := rand.Intn(max-min) + min
+	return v
+}
+
+func joinCluster() {
 	var sock mangos.Socket
 	var err error
 	var msg []byte
@@ -121,7 +128,8 @@ func joinCluster(){
 		fmt.Printf("CLIENT(%s): SENDING DATE SURVEY RESPONSE\n", name)
 		t := time.Now()
 		tf := t.Format("2006-01-02 15:04:05-07:00")
-		workerMetadata := workerName + "@" + tags + "@" +getIP() + "@" + strconv.Itoa(port) + "@" + tf
+		usage := randomUse(100, 0)
+		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" + strconv.Itoa(port) + "@" + tf + "@" + strconv.Itoa(usage)
 		if err = sock.Send([]byte(workerMetadata)); err != nil {
 			die("Cannot send: %s", err.Error())
 		}
