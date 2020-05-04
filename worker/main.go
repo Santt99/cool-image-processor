@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/big"
 	"net"
 	"os"
 	"strconv"
@@ -101,12 +102,6 @@ func getIP() string {
 	return localAddr
 }
 
-func randomUse(max int, min int) int {
-	rand.Seed(time.Now().UnixNano())
-	v := rand.Intn(max-min) + min
-	return v
-}
-
 func joinCluster() {
 	var sock mangos.Socket
 	var err error
@@ -128,8 +123,12 @@ func joinCluster() {
 		fmt.Printf("CLIENT(%s): SENDING DATE SURVEY RESPONSE\n", name)
 		t := time.Now()
 		tf := t.Format("2006-01-02 15:04:05-07:00")
-		usage := randomUse(100, 0)
-		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" + strconv.Itoa(port) + "@" + tf + "@" + strconv.Itoa(usage)
+		usage, err := rand.Int(rand.Reader, big.NewInt(100))
+
+		if err != nil {
+			panic(err)
+		}
+		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" + strconv.Itoa(port) + "@" + tf + "@" + usage.String()
 		if err = sock.Send([]byte(workerMetadata)); err != nil {
 			die("Cannot send: %s", err.Error())
 		}

@@ -37,19 +37,18 @@ func Start() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
 
 	tx, err := db.Begin(true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer tx.Rollback()
 
 	_, err = tx.CreateBucketIfNotExists([]byte("Workers"))
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	tx.Rollback()
+	db.Close()
 	if sock, err = surveyor.NewSocket(); err != nil {
 		die("can't get new surveyor socket: %s", err)
 	}
@@ -76,7 +75,7 @@ func Start() {
 			insertWorkerToDB(Worker{workerName, workerMetadata[1], workerMetadata[2], workerMetadata[3], lastUpdate, "On", workerMetadata[5]})
 		}
 		updateWorkersPowerStatus()
-		fmt.Println("SERVER: SURVEY OVER")
+		fmt.Println(GetWorkers())
 	}
 }
 
@@ -87,7 +86,7 @@ type Worker struct {
 	Port        string `json:"port"`
 	LastUpdate  string `json:"lastUpdate"`
 	PowerStatus string `json:"powerStatus"`
-	usage       string `json:"usage"`
+	Usage       string `json:"usage"`
 }
 
 func insertWorkerToDB(worker Worker) {
@@ -142,7 +141,7 @@ func insertWorkerToDB(worker Worker) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = nodeMetadata.Put([]byte("usage"), []byte(worker.usage))
+	err = nodeMetadata.Put([]byte("usage"), []byte(worker.Usage))
 	if err != nil {
 		log.Fatal(err)
 	}

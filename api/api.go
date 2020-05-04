@@ -86,7 +86,7 @@ func getWorkersStatus(c *gin.Context) {
 	if workers == nil {
 		c.JSON(http.StatusOK, gin.H{"message": "No workers registered"})
 	}
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, workers)
 }
 func logout(c *gin.Context) {
 	username, err := auth(c)
