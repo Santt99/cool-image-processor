@@ -1,0 +1,2 @@
+# Architecture
+![Screenshot](architecture.png)
