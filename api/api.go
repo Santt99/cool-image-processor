@@ -57,12 +57,20 @@ func Run(jobs chan int) {
 	}))
 
 	authorized.GET("/login", login)
-	r.GET("/status", getStatus)
-	r.GET("/status/workers", getWorkersStatus)
+	r.GET("/status", getWorkersStatus)
+	r.GET("/status/:worker", getWorkerStatus)
 	r.GET("/logout", logout)
 	r.GET("/upload", upload)
 	r.GET("/workloads/test", hello)
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+}
+func getWorkerStatus(c *gin.Context) {
+	workerName := c.Param("worker")
+	worker := controller.GetWorker(workerName)
+	if (worker == controller.Worker{}) {
+		c.JSON(http.StatusOK, gin.H{"message": "No workers registered"})
+	}
+	c.JSON(http.StatusOK, worker)
 }
 func hello(c *gin.Context) {
 	_, err := auth(c)

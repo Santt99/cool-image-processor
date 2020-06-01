@@ -236,3 +236,49 @@ func updateWorkersPowerStatus() {
 	}
 
 }
+
+func GetWorker(workerName string) Worker {
+	db, err := bolt.Open("my.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	tx, err := db.Begin(true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	workers := tx.Bucket([]byte("Workers"))
+	if workers != nil {
+		node := workers.Bucket([]byte(workerName))
+		fmt.Println(node)
+		c := node.Cursor()
+		nodeName, nodeIp, nodePort, nodePowerStatus, nodeTimestamp, nodeTags, nodeUsage := "", "", "", "", "", "", ""
+
+		for key, value := c.First(); key != nil; key, value = c.Next() {
+			switch key := string(key); key {
+			case "name":
+				nodeName = string(value)
+			case "ip":
+				nodeIp = string(value)
+			case "port":
+				nodePort = string(value)
+			case "powerStatus":
+				nodePowerStatus = string(value)
+			case "tag":
+				nodeTags = string(value)
+			case "usage":
+				nodeUsage = string(value)
+			default:
+				nodeTimestamp = string(value)
+			}
+		}
+
+		return Worker{nodeName, nodeTags, nodeIp, nodePort, nodeTimestamp, nodePowerStatus, nodeUsage}
+
+	}
+
+	return Worker{}
+
+}
