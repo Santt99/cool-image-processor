@@ -198,7 +198,7 @@ func itExist(tknStr string) (string, error) {
 func login(c *gin.Context) {
 	username := c.MustGet(gin.AuthUserKey).(string)
 
-	expirationTime := time.Now().Add(5 * time.Minute)
+	expirationTime := time.Now().Add(20 * time.Minute) // Here he should modified to give more time to the user
 
 	claims := &Claims{
 		Username: username,

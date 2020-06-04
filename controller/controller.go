@@ -220,7 +220,7 @@ func updateWorkersPowerStatus() {
 							}
 							t := time.Now()
 							diff := t.Sub(lastUpdate)
-							if diff > 5000 {
+							if diff > 500000 {
 								node.Put([]byte("powerStatus"), []byte("off"))
 							}
 						}
