@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"path/filepath"
+
 	"github.com/Santt99/cool-image-processor/controller"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
@@ -47,7 +49,8 @@ func (e *Err) Error() string {
 
 func Run(jobs chan int) {
 	r := gin.Default()
-	r.Use()
+	r.LoadHTMLGlob(filepath.Join(os.Getenv("GOPATH"), "/src/github.com/Santt99/cool-image-processor/api/templates/*"))
+
 	jobsQueue = jobs
 	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
 		"foo":    "bar",
@@ -57,13 +60,41 @@ func Run(jobs chan int) {
 	}))
 
 	authorized.GET("/login", login)
+	r.StaticFS("/results", gin.Dir("./results", true))
+	r.GET("/results", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"tree": getResultsTree(),
+		})
+	})
 	r.GET("/status", getWorkersStatus)
 	r.GET("/status/:worker", getWorkerStatus)
 	r.GET("/logout", logout)
 	r.GET("/upload", upload)
 	r.GET("/workloads/test", hello)
-	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+	r.Run(":8080") // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
+
+func getResultsTree() []map[string]string {
+	var files []map[string]string
+
+	root := "./results/"
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if path != root {
+			file := make(map[string]string)
+			file["name"] = info.Name()
+			file["path"] = path
+			file["isDir"] = strconv.FormatBool(info.IsDir())
+			files = append(files, file)
+		}
+		fmt.Println(info)
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+	return files
+}
+
 func getWorkerStatus(c *gin.Context) {
 	workerName := c.Param("worker")
 	worker := controller.GetWorker(workerName)
