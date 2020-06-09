@@ -16,7 +16,7 @@ func main() {
 
 	// Start Scheduler
 	jobs := make(chan scheduler.Job)
-	jobsByCodeName := make(chan int, 10)
+	jobsByCodeName := make(chan api.FilterJob, 10)
 	go scheduler.Start(jobs)
 
 	// Send sample jobs
@@ -24,10 +24,10 @@ func main() {
 	for {
 		select {
 		case data := <-jobsByCodeName:
-			if data == 1 {
-				currentJob := scheduler.Job{Work: "SayHello", RPCName: "Paco"}
-				jobs <- currentJob
-			}
+
+			currentJob := scheduler.Job{Filter: data.Filter, WorkloadId: data.WorkloadID, UploadUrl: "http:localhost:8080/upload", DownloadUrl: "http:localhost:8080/download", ImageId: data.ImageID}
+			jobs <- currentJob
+
 		default:
 		}
 	}

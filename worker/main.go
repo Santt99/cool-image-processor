@@ -48,8 +48,8 @@ func date() string {
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
-	log.Printf("RPC: Received: %v", in.GetName())
-	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
+	log.Printf("RPC: Received: %v", in.GetWorkloadId())
+	return &pb.HelloReply{Message: "Hello " + in.GetWorkloadId() + " " + in.GetImageId() + " " + in.GetFilter() + " " + in.GetUploadUrl() + " " + in.GetDownloadUrl()}, nil
 }
 
 func init() {

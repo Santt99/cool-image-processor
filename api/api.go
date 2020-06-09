@@ -24,15 +24,11 @@ var secrets = gin.H{
 }
 
 var tokens = make(map[string]string)
-var jobsQueue = make(chan int, 10)
+var jobsQueue = make(chan FilterJob, 10)
 
 // Create the JWT key used to create the signature
 var jwtKey = []byte("my_secret_key")
 
-type Credentials struct {
-	Password string `json:"password"`
-	Username string `json:"username"`
-}
 type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
@@ -47,7 +43,7 @@ func (e *Err) Error() string {
 	return fmt.Sprintf("%d-%s", e.code, e.message)
 }
 
-func Run(jobs chan int) {
+func Run(jobs chan FilterJob) {
 	r := gin.Default()
 	r.LoadHTMLGlob(filepath.Join(os.Getenv("GOPATH"), "/src/github.com/Santt99/cool-image-processor/api/templates/*"))
 
@@ -59,7 +55,7 @@ func Run(jobs chan int) {
 		"manu":   "4321",
 	}))
 
-	authorized.GET("/login", login)
+	authorized.POST("/login", login)
 	r.StaticFS("/results", gin.Dir("./results", true))
 	r.GET("/results", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
@@ -69,8 +65,9 @@ func Run(jobs chan int) {
 	r.GET("/status", getWorkersStatus)
 	r.GET("/status/:worker", getWorkerStatus)
 	r.GET("/logout", logout)
-	r.GET("/upload", upload)
-	r.GET("/workloads/test", hello)
+	r.POST("/upload", upload)
+	// r.GET("/download", download)
+	r.POST("/workloads/filter", filter)
 	r.Run(":8080") // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
 
@@ -103,15 +100,39 @@ func getWorkerStatus(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, worker)
 }
-func hello(c *gin.Context) {
+
+type FilterJob struct {
+	WorkloadID string `json:"workload-id"`
+	Filter     string `json:"filter"`
+	ImageID    string
+}
+
+func filter(c *gin.Context) {
 	_, err := auth(c)
 	if err != nil {
 		errorCode := getErrorCode(err)
 		c.AbortWithStatus(errorCode)
 		return
 	}
-	jobsQueue <- 1
-	c.JSON(http.StatusOK, gin.H{"message": "Hola"})
+	workloadId := c.Request.FormValue("workload-id")
+
+	filter := c.Request.FormValue("filter")
+
+	file, header, err := c.Request.FormFile("data")
+	if err != nil {
+		returnError(err, c)
+		return
+	}
+	err = createFile("./uploads/"+header.Filename, file)
+	if err != nil {
+		returnError(err, c)
+		return
+	}
+	// Pass filterJob.WorkloadID
+	filterJob := FilterJob{workloadId, filter, header.Filename}
+	jobsQueue <- filterJob
+	resultsURL := fmt.Sprint("http://localhost:8080", "/results/", filterJob.WorkloadID)
+	c.JSON(http.StatusOK, gin.H{"Workload ID": filterJob.WorkloadID, "Filter": filterJob.Filter, "Status": "Scheduling", "Results": resultsURL, "Filename": header.Filename})
 }
 
 func getWorkersStatus(c *gin.Context) {
@@ -169,7 +190,8 @@ func upload(c *gin.Context) {
 		returnError(err, c)
 		return
 	}
-	err = createFile(header.Filename, file)
+	//Todo: Add worload_id subdirectort
+	err = createFile("./results/"+header.Filename, file)
 	if err != nil {
 		returnError(err, c)
 		return

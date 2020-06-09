@@ -26,7 +26,11 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // The request message containing the user's name.
 type HelloRequest struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	WorkloadId           string   `protobuf:"bytes,1,opt,name=workloadid,proto3" json:"workloadid,omitempty"`
+	Filter               string   `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	DownloadUrl          string   `protobuf:"bytes,1,opt,name=downloadurl,proto3" json:"downloadurl,omitempty"`
+	UploadUrl            string   `protobuf:"bytes,1,opt,name=uploadurl,proto3" json:"uploadurl,omitempty"`
+	ImageId              string   `protobuf:"bytes,1,opt,name=imageid,proto3" json:"imageid,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -57,9 +61,35 @@ func (m *HelloRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_HelloRequest proto.InternalMessageInfo
 
-func (m *HelloRequest) GetName() string {
+func (m *HelloRequest) GetWorkloadId() string {
 	if m != nil {
-		return m.Name
+		return m.WorkloadId
+	}
+	return ""
+}
+
+func (m *HelloRequest) GetFilter() string {
+	if m != nil {
+		return m.Filter
+	}
+	return ""
+}
+func (m *HelloRequest) GetUploadUrl() string {
+	if m != nil {
+		return m.UploadUrl
+	}
+	return ""
+}
+func (m *HelloRequest) GetDownloadUrl() string {
+	if m != nil {
+		return m.DownloadUrl
+	}
+	return ""
+}
+
+func (m *HelloRequest) GetImageId() string {
+	if m != nil {
+		return m.ImageId
 	}
 	return ""
 }
