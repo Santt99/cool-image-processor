@@ -5,10 +5,14 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -49,13 +53,41 @@ func date() string {
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	log.Printf("RPC: Received: %v", in.GetWorkloadId())
-	// Downlad the image
-	// Decide with that code we will process the image: if in.GetFilter() == "blur", etc.
-	// Process the image
-	// Upload the image
-	return &pb.HelloReply{Message: "Hello " + in.GetWorkloadId() + " " + in.GetImageId() + " " + in.GetFilter() + " " + in.GetUploadUrl() + " " + in.GetDownloadUrl()}, nil
-}
+	downloadResponse, downloadErr := http.PostForm(in.GetDownloadUrl(), url.Values{"image-id": {in.GetImageId()}})
+	if downloadErr != nil {
+		fmt.Print(downloadErr)
+	}
+	defer downloadResponse.Body.Close()
+	createFile(in.GetImageId(), downloadResponse.Body)
+	app := "./process"
+	output_fn := "out_" + in.GetImageId()
+	cmd := exec.Command(app, in.GetFilter(), in.GetImageId(), output_fn)
+	_, err := cmd.Output()
 
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	curl := "curl"
+	cmd = exec.Command(curl, "-H", "'content-type: multipart/form-data'", "-F", "workload-id="+in.GetWorkloadId(), "-F", "data=@"+output_fn, in.GetUploadUrl())
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(string(out))
+	return &pb.HelloReply{WorkloadId: in.GetWorkloadId(), ImageId: in.GetImageId(), Filter: in.GetFilter(), DownloadUrl: in.GetDownloadUrl(), UploadUrl: in.GetUploadUrl()}, nil
+}
+func createFile(fileName string, file io.ReadCloser) error {
+	out, err := os.Create("./" + fileName)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer out.Close()
+	_, erro := io.Copy(out, file)
+	if erro != nil {
+		fmt.Println(err)
+	}
+	return nil
+}
 func init() {
 	flag.StringVar(&controllerAddress, "controller", "tcp://localhost:40899", "Controller address")
 	flag.StringVar(&workerName, "worker-name", "hard-worker", "Worker Name")

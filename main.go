@@ -25,7 +25,7 @@ func main() {
 		select {
 		case data := <-jobsByCodeName:
 
-			currentJob := scheduler.Job{Filter: data.Filter, WorkloadId: data.WorkloadID, UploadUrl: "http:localhost:8080/upload", DownloadUrl: "http:localhost:8080/download", ImageId: data.ImageID}
+			currentJob := scheduler.Job{Filter: data.Filter, WorkloadId: data.WorkloadID, UploadUrl: "http://localhost:8080/upload", DownloadUrl: "http://localhost:8080/download", ImageId: data.ImageID}
 			jobs <- currentJob
 
 		default:

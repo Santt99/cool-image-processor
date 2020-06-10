@@ -33,12 +33,11 @@ func schedule(job Job) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-
 	r, err := c.SayHello(ctx, &pb.HelloRequest{WorkloadId: job.WorkloadId, Filter: job.Filter, UploadUrl: job.UploadUrl, DownloadUrl: job.DownloadUrl, ImageId: job.ImageId})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
-	log.Printf("Scheduler: RPC respose from %s : %s", job.WorkloadId, r.GetMessage())
+	log.Printf("Scheduler: RPC respose from %s : %s", job.WorkloadId, r.GetImageId())
 
 }
 

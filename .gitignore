@@ -16,6 +16,8 @@
 #
 *.db
 
-
+*.png
+*.jpg
+*.txt
 .vscode/
 .idea/

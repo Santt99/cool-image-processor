@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -66,7 +67,7 @@ func Run(jobs chan FilterJob) {
 	r.GET("/status/:worker", getWorkerStatus)
 	r.GET("/logout", logout)
 	r.POST("/upload", upload)
-	// r.GET("/download", download)
+	r.POST("/download", download)
 	r.POST("/workloads/filter", filter)
 	r.Run(":8080") // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
@@ -102,8 +103,8 @@ func getWorkerStatus(c *gin.Context) {
 }
 
 type FilterJob struct {
-	WorkloadID string `json:"workload-id"`
-	Filter     string `json:"filter"`
+	WorkloadID string
+	Filter     string
 	ImageID    string
 }
 
@@ -178,11 +179,10 @@ func getStatus(c *gin.Context) {
 }
 
 func upload(c *gin.Context) {
-
-	_, err := auth(c)
-	if err != nil {
-		returnError(err, c)
-		return
+	workloadId := c.Request.FormValue("workload-id")
+	path := "./results/" + workloadId + "/"
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.Mkdir(path, 0777)
 	}
 
 	file, header, err := c.Request.FormFile("data")
@@ -191,8 +191,12 @@ func upload(c *gin.Context) {
 		return
 	}
 	//Todo: Add worload_id subdirectort
-	err = createFile("./results/"+header.Filename, file)
+	files, _ := ioutil.ReadDir(path)
+	fileNameParts := strings.Split(header.Filename, ".")
+	fileExtension := fileNameParts[len(fileNameParts)-1]
+	err = createFile(path+strconv.Itoa(len(files))+"."+fileExtension, file)
 	if err != nil {
+		fmt.Println(err)
 		returnError(err, c)
 		return
 	}
@@ -200,6 +204,16 @@ func upload(c *gin.Context) {
 	size := strconv.Itoa(int(header.Size))
 
 	c.JSON(http.StatusOK, gin.H{"status": "SUCCESS", "fileName": header.Filename, "fileSize": size + " bytes"})
+}
+
+type DownloadJsonBody struct {
+	ImageID string `json:"image-id"`
+}
+
+func download(c *gin.Context) {
+	imageId := c.Request.FormValue("image-id")
+	fmt.Println(imageId)
+	c.File("./uploads/" + imageId)
 }
 
 func returnError(err error, c *gin.Context) {

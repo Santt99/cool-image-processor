@@ -10,5 +10,6 @@ require (
 	github.com/golang/protobuf v1.4.0
 	go.etcd.io/bbolt v1.3.4
 	google.golang.org/grpc v1.29.1
+	google.golang.org/protobuf v1.21.0
 	nanomsg.org/go/mangos/v2 v2.0.8
 )
