@@ -49,6 +49,10 @@ func date() string {
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	log.Printf("RPC: Received: %v", in.GetWorkloadId())
+	// Downlad the image
+	// Decide with that code we will process the image: if in.GetFilter() == "blur", etc.
+	// Process the image
+	// Upload the image
 	return &pb.HelloReply{Message: "Hello " + in.GetWorkloadId() + " " + in.GetImageId() + " " + in.GetFilter() + " " + in.GetUploadUrl() + " " + in.GetDownloadUrl()}, nil
 }
 
