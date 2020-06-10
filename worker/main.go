@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"flag"
 	"fmt"
 	"io"
 	"log"
-	"math/big"
 	"net"
 	"net/http"
 	"net/url"
@@ -24,6 +22,8 @@ import (
 	// register transports
 	"google.golang.org/grpc"
 	_ "nanomsg.org/go/mangos/v2/transport/all"
+	mem "github.com/shirou/gopsutil/mem"
+	cpu "github.com/shirou/gopsutil/cpu"
 )
 
 // server is used to implement helloworld.GreeterServer.
@@ -138,6 +138,28 @@ func getIP() string {
 	return localAddr
 }
 
+func getUsage()(string, string, error){
+	v, err := mem.VirtualMemory()
+
+	memUsage := v.UsedPercent
+	if (err != nil){
+		return "", "", err
+	}
+	c, err1 := cpu.Times(false)
+
+	if err1 != nil {
+		fmt.Printf("%v",err1)
+		return "", "", err1
+	}
+	
+	cpuUsage := 0.0
+	for _, item := range c {
+		cpuUsage = ((item.User + item.System ) / item.Total()) * 100
+	}
+	return strconv.FormatFloat(cpuUsage, 'f', -1, 32), strconv.FormatFloat(memUsage, 'f', -1, 32), nil
+	
+}
+
 func joinCluster() {
 	var sock mangos.Socket
 	var err error
@@ -159,12 +181,14 @@ func joinCluster() {
 		fmt.Printf("CLIENT(%s): SENDING DATE SURVEY RESPONSE\n", name)
 		t := time.Now()
 		tf := t.Format("2006-01-02 15:04:05-07:00")
-		usage, err := rand.Int(rand.Reader, big.NewInt(100))
+
+		cpuUsage, memUsage, err := getUsage()
 
 		if err != nil {
 			panic(err)
 		}
-		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" + strconv.Itoa(port) + "@" + tf + "@" + usage.String()
+		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" 
+		workerMetadata += strconv.Itoa(port) + "@" + tf + "@" + cpuUsage + "@" + memUsage
 		if err = sock.Send([]byte(workerMetadata)); err != nil {
 			die("Cannot send: %s", err.Error())
 		}
