@@ -35,28 +35,43 @@ void blur(unsigned char* input_image, unsigned char* output_image, int width, in
         output_image[offset*3+2] = output_blue/hits;
         }
 }
+__global__
+void grayscale(unsigned char* input_image, unsigned char* output_image, int width, int height) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (idx < width*height){
+        unsigned char res = (input_image[idx*3] + input_image[idx*3 + 1] + input_image[idx*3+1])/3;
+        output_image[idx] = res;
+    }
+}
 
 
 
 
-void other (unsigned char* input_image, unsigned char* output_image, int width, int height) {
+void filter (unsigned char* input_image, unsigned char* output_image, int width, int height, int outChannels) {
 
     unsigned char* dev_input;
     unsigned char* dev_output;
     cudaMalloc( (void**) &dev_input, width*height*3*sizeof(unsigned char));
     cudaMemcpy( dev_input, input_image, width*height*3*sizeof(unsigned char), cudaMemcpyHostToDevice );
  
-    cudaMalloc( (void**) &dev_output, width*height*3*sizeof(unsigned char));
+    cudaMalloc( (void**) &dev_output, width*height*outChannels*sizeof(unsigned char));
+    if (outChannels == 3){
+        dim3 blockDims(512,1,1);
+        dim3 gridDims((unsigned int) ceil((double)(width*height*3/blockDims.x)), 1, 1 );
+        blur<<<gridDims, blockDims>>>(dev_input, dev_output, width, height); 
+    }
+    else{
+        int N = width*height;
+        int THREADS_PER_BLOCK = 512;
+        grayscale<<<N/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(dev_input, dev_output, width, height);
+    }
 
-    dim3 blockDims(512,1,1);
-    dim3 gridDims((unsigned int) ceil((double)(width*height*3/blockDims.x)), 1, 1 );
 
-    blur<<<gridDims, blockDims>>>(dev_input, dev_output, width, height); 
-
-
-    cudaMemcpy(output_image, dev_output, width*height*3*sizeof(unsigned char), cudaMemcpyDeviceToHost );
+    cudaMemcpy(output_image, dev_output, width*height*outChannels*sizeof(unsigned char), cudaMemcpyDeviceToHost );
 
     cudaFree(dev_input);
     cudaFree(dev_output);
 
 }
+
+

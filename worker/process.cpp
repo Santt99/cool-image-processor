@@ -31,8 +31,8 @@ int main(int argc, char **argv)
 
     unsigned char *data =
         (unsigned char *)malloc(sizeof(unsigned char) * width * height * 3);
-    unsigned char *out =
-        (unsigned char *)malloc(sizeof(unsigned char) * width * height * 3);
+    
+        
     uint8_t *pixel = rgb_image;
     int index = 0;
 
@@ -47,10 +47,16 @@ int main(int argc, char **argv)
         }
     }
 
-    other(data, out, width, height);
-
+    int outChannels = 3;
+    if (filter_type == "grayscale"){
+        outChannels = 1;
+    }
+    
+    unsigned char *out = (unsigned char *)malloc(sizeof(unsigned char) * width * height * outChannels);
+    filter(data, out, width, height, outChannels);
+ 
     // Rewrite the image to make sure that image reader is working correctly
-    stbi_write_jpg(output_image_path, width, height, 3, out, width * sizeof(int));
+    stbi_write_jpg(output_image_path, width, height, outChannels, out, width * sizeof(int));
     stbi_image_free(rgb_image);
     free(out);
     free(data);
