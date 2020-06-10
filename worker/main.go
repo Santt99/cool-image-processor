@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"flag"
 	"fmt"
 	"log"
-	"math/big"
 	"net"
 	"os"
 	"strconv"
@@ -108,25 +106,25 @@ func getIP() string {
 	return localAddr
 }
 
-func getUsage()(float64, float64, error){
+func getUsage()(string, string, error){
 	v, err := mem.VirtualMemory()
 
 	memUsage := v.UsedPercent
-	if (err){
-		return nil, nil, err
+	if (err != nil){
+		return "", "", err
 	}
 	c, err1 := cpu.Times(false)
 
 	if err1 != nil {
 		fmt.Printf("%v",err1)
-		return nil, nil, err1
+		return "", "", err1
 	}
 	
-	cpuUsage := 0
+	cpuUsage := 0.0
 	for _, item := range c {
 		cpuUsage = ((item.User + item.System ) / item.Total()) * 100
 	}
-	return cpuUsage, memUsage, nil
+	return strconv.FormatFloat(cpuUsage, 'f', -1, 32), strconv.FormatFloat(memUsage, 'f', -1, 32), nil
 	
 }
 
@@ -158,7 +156,7 @@ func joinCluster() {
 			panic(err)
 		}
 		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" 
-		workerMetadata += strconv.Itoa(port) + "@" + tf + "@" + cpuUsage.String() + "@" + memUsage.String()
+		workerMetadata += strconv.Itoa(port) + "@" + tf + "@" + cpuUsage + "@" + memUsage
 		if err = sock.Send([]byte(workerMetadata)); err != nil {
 			die("Cannot send: %s", err.Error())
 		}
