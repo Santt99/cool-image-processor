@@ -8,6 +8,7 @@ require (
 	github.com/gin-gonic/contrib v0.0.0-20191209060500-d6e26eeaa607
 	github.com/gin-gonic/gin v1.6.2
 	github.com/golang/protobuf v1.4.0
+	github.com/shirou/gopsutil v2.20.5+incompatible // indirect
 	go.etcd.io/bbolt v1.3.4
 	google.golang.org/grpc v1.29.1
 	nanomsg.org/go/mangos/v2 v2.0.8
