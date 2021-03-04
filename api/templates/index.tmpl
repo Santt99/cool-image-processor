@@ -1,0 +1,9 @@
+<html>
+	{{range $element := .tree}}
+        {{if eq $element.isDir "true"}}
+            <h2>{{$element.name}}</h2>
+        {{ else }}
+            <p><a href={{$element.path}}>{{$element.name}}</a></p>
+        {{end}}                    
+    {{end}}
+</html>

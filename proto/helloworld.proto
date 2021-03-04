@@ -28,10 +28,18 @@ service Greeter {
 
 // The request message containing the user's name.
 message HelloRequest {
-  string name = 1;
+  string Filter = 1;               
+	string DownloadUrl = 2;            
+	string UploadUrl = 3;           
+	string ImageId = 4;       
+  string WorkloadId = 5;         
 }
 
 // The response message containing the greetings
 message HelloReply {
-  string message = 1;
+  string Filter = 1;               
+	string DownloadUrl = 2;            
+	string UploadUrl = 3;           
+	string ImageId = 4;
+  string WorkloadId = 5;    
 }

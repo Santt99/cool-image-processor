@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"flag"
 	"fmt"
+	"io"
 	"log"
-	"math/big"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +22,8 @@ import (
 	// register transports
 	"google.golang.org/grpc"
 	_ "nanomsg.org/go/mangos/v2/transport/all"
+	mem "github.com/shirou/gopsutil/mem"
+	cpu "github.com/shirou/gopsutil/cpu"
 )
 
 // server is used to implement helloworld.GreeterServer.
@@ -48,10 +52,42 @@ func date() string {
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
-	log.Printf("RPC: Received: %v", in.GetName())
-	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
-}
+	log.Printf("RPC: Received: %v", in.GetWorkloadId())
+	downloadResponse, downloadErr := http.PostForm(in.GetDownloadUrl(), url.Values{"image-id": {in.GetImageId()}})
+	if downloadErr != nil {
+		fmt.Print(downloadErr)
+	}
+	defer downloadResponse.Body.Close()
+	createFile(in.GetImageId(), downloadResponse.Body)
+	app := "./process"
+	output_fn := "out_" + in.GetImageId()
+	cmd := exec.Command(app, in.GetFilter(), in.GetImageId(), output_fn)
+	_, err := cmd.Output()
 
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	curl := "curl"
+	cmd = exec.Command(curl, "-H", "'content-type: multipart/form-data'", "-F", "workload-id="+in.GetWorkloadId(), "-F", "data=@"+output_fn, in.GetUploadUrl())
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(string(out))
+	return &pb.HelloReply{WorkloadId: in.GetWorkloadId(), ImageId: in.GetImageId(), Filter: in.GetFilter(), DownloadUrl: in.GetDownloadUrl(), UploadUrl: in.GetUploadUrl()}, nil
+}
+func createFile(fileName string, file io.ReadCloser) error {
+	out, err := os.Create("./" + fileName)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer out.Close()
+	_, erro := io.Copy(out, file)
+	if erro != nil {
+		fmt.Println(err)
+	}
+	return nil
+}
 func init() {
 	flag.StringVar(&controllerAddress, "controller", "tcp://localhost:40899", "Controller address")
 	flag.StringVar(&workerName, "worker-name", "hard-worker", "Worker Name")
@@ -102,6 +138,28 @@ func getIP() string {
 	return localAddr
 }
 
+func getUsage()(string, string, error){
+	v, err := mem.VirtualMemory()
+
+	memUsage := v.UsedPercent
+	if (err != nil){
+		return "", "", err
+	}
+	c, err1 := cpu.Times(false)
+
+	if err1 != nil {
+		fmt.Printf("%v",err1)
+		return "", "", err1
+	}
+	
+	cpuUsage := 0.0
+	for _, item := range c {
+		cpuUsage = ((item.User + item.System ) / item.Total()) * 100
+	}
+	return strconv.FormatFloat(cpuUsage, 'f', -1, 32), strconv.FormatFloat(memUsage, 'f', -1, 32), nil
+	
+}
+
 func joinCluster() {
 	var sock mangos.Socket
 	var err error
@@ -123,12 +181,14 @@ func joinCluster() {
 		fmt.Printf("CLIENT(%s): SENDING DATE SURVEY RESPONSE\n", name)
 		t := time.Now()
 		tf := t.Format("2006-01-02 15:04:05-07:00")
-		usage, err := rand.Int(rand.Reader, big.NewInt(100))
+
+		cpuUsage, memUsage, err := getUsage()
 
 		if err != nil {
 			panic(err)
 		}
-		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" + strconv.Itoa(port) + "@" + tf + "@" + usage.String()
+		workerMetadata := workerName + "@" + tags + "@" + getIP() + "@" 
+		workerMetadata += strconv.Itoa(port) + "@" + tf + "@" + cpuUsage + "@" + memUsage
 		if err = sock.Send([]byte(workerMetadata)); err != nil {
 			die("Cannot send: %s", err.Error())
 		}

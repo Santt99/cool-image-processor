@@ -15,8 +15,11 @@ const (
 )
 
 type Job struct {
-	Work string
-	RPCName string
+	Filter      string
+	WorkloadId  string
+	UploadUrl   string
+	DownloadUrl string
+	ImageId     string
 }
 
 func schedule(job Job) {
@@ -30,15 +33,12 @@ func schedule(job Job) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if(job.Work == "SayHello"){
-		r, err := c.SayHello(ctx, &pb.HelloRequest{Name: job.RPCName})
-		if err != nil {
-			log.Fatalf("could not greet: %v", err)
-		}
-		log.Printf("Scheduler: RPC respose from %s : %s", job.Work, r.GetMessage())
+	r, err := c.SayHello(ctx, &pb.HelloRequest{WorkloadId: job.WorkloadId, Filter: job.Filter, UploadUrl: job.UploadUrl, DownloadUrl: job.DownloadUrl, ImageId: job.ImageId})
+	if err != nil {
+		log.Fatalf("could not greet: %v", err)
 	}
-	
-	
+	log.Printf("Scheduler: RPC respose from %s : %s", job.WorkloadId, r.GetImageId())
+
 }
 
 func Start(jobs chan Job) error {
